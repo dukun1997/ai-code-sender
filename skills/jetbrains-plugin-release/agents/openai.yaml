@@ -1,0 +1,3 @@
+interface:
+  display_name: "JetBrains Plugin Release"
+  short_description: "Publish plugin ZIPs to GitHub Releases"
