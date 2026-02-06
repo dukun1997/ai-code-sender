@@ -1,0 +1,26 @@
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+
+# Temp/test artifacts
+.tmp-*/
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node
+node_modules/
+
+# JetBrains plugin build artifacts
+ide-context/jetbrains-plugin/.gradle/
+ide-context/jetbrains-plugin/.intellijPlatform/
+ide-context/jetbrains-plugin/build/
+ide-context/jetbrains-plugin/out/
+
+# Gradle daemon/caches generated in project
+.gradle/

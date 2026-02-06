@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cat >&2 <<'EOF'
+Note: OpenCode auto-injection depends on plugin config in your project opencode.json:
+  "./ide-context/opencode-plugin/ide-context-plugin.mjs"
+EOF
+
+exec opencode "$@"

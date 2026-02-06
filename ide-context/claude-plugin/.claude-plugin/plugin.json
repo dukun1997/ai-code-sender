@@ -1,0 +1,10 @@
+{
+  "name": "ide-context-bridge",
+  "description": "Inject current IDE selection/class context into Claude Code prompts via UserPromptSubmit hook",
+  "version": "0.1.0",
+  "author": {
+    "name": "dukun"
+  },
+  "license": "MIT",
+  "keywords": ["ide", "context", "hook", "jetbrains"]
+}

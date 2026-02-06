@@ -1,0 +1,15 @@
+<idea-plugin>
+  <id>com.dukun.opencode.idecontext</id>
+  <name>OpenCode IDE Context Bridge</name>
+  <vendor email="support@example.com">dukun</vendor>
+  <version>0.1.1</version>
+  <idea-version since-build="252"/>
+
+  <depends>com.intellij.modules.platform</depends>
+  <depends>com.intellij.modules.java</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <postStartupActivity implementation="com.dukun.opencodeide.IdeContextStartupActivity"/>
+    <projectService serviceImplementation="com.dukun.opencodeide.IdeContextProjectService"/>
+  </extensions>
+</idea-plugin>

@@ -1,0 +1,6 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "/Users/dukun/code/tool/ai-code-sender/ide-context/opencode-plugin/ide-context-plugin.mjs"
+  ]
+}
