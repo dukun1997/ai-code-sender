@@ -54,13 +54,6 @@ function rangeText(snapshot) {
   return lineStart === lineEnd ? `L${lineStart}` : `L${lineStart}-${lineEnd}`;
 }
 
-function selectedLineCount(snapshot) {
-  const lineStart = toIntOrNull(snapshot.lineStart);
-  const lineEnd = toIntOrNull(snapshot.lineEnd);
-  if (lineStart === null || lineEnd === null) return null;
-  return Math.max(1, lineEnd - lineStart + 1);
-}
-
 function parseLock(filePath, raw) {
   const workspaceFolders = Array.isArray(raw.workspaceFolders)
     ? raw.workspaceFolders.filter((it) => typeof it === "string")
@@ -231,6 +224,16 @@ export default async function IdeContextPlugin(ctx) {
         }
 
         const snapshot = await fetchContext(matchedLock);
+        const contextType = String(snapshot?.contextType || "");
+        if (contextType !== "selection") {
+          if (process.env.OPENCODE_IDE_DEBUG === "1") {
+            console.error(
+              `[ide-context-plugin] skip non-selection context: type=${contextType || "unknown"}`,
+            );
+          }
+          return;
+        }
+
         const revision = Number.isInteger(snapshot?.revision) ? snapshot.revision : null;
         const sessionID = typeof input?.sessionID === "string" && input.sessionID
           ? input.sessionID

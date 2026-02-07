@@ -7,6 +7,7 @@ This plugin injects JetBrains IDE context into every OpenCode user message.
 1. Reads lock files from `~/.opencode/ide/*.lock` (or `OPENCODE_IDE_LOCK_DIR`)
 1. Picks the lock matching current `cwd`
 1. Calls `GET /context/current` with `X-OpenCode-Ide-Authorization`
+1. Injects only when context type is `selection` (no class/caret fallback injection)
 1. Prepends compact IDE reference text to the outgoing prompt (`chat.message` hook), for example:
    - `@hm-server/src/main/java/.../Foo.java#L120-L128`
 

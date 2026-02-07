@@ -22,21 +22,19 @@ Do not use this skill for building the plugin itself. Build first, then release.
 
 1. Confirm inputs:
 - repository (default from current git `origin`)
-- version/tag (for example `0.1.2` or `v0.1.2`)
-- plugin ZIP path
+- version/tag (optional; default auto-infers latest semver and bumps patch)
+- plugin ZIP path (optional; default auto-picks newest `.zip` in the fixed directory below)
 
-2. Run the release script:
+2. Run the release script (defaults enabled):
 ```bash
-skills/jetbrains-plugin-release/scripts/release_jetbrains_plugin.sh \
-  --version 0.1.2 \
-  --zip ide-context/jetbrains-plugin/build/distributions/opencode-ide-context-plugin-0.1.2.zip
+skills/jetbrains-plugin-release/scripts/release_jetbrains_plugin.sh
 ```
 
-3. If needed, pass explicit repo/title/notes:
+3. If needed, pass explicit repo/version/zip/title/notes:
 ```bash
 skills/jetbrains-plugin-release/scripts/release_jetbrains_plugin.sh \
   --version v0.1.2 \
-  --zip ide-context/jetbrains-plugin/build/distributions/opencode-ide-context-plugin-0.1.2.zip \
+  --zip /Users/dukun/code/tool/ai-code-sender/ide-context/jetbrains-plugin/build/distributions/opencode-ide-context-plugin-0.1.2.zip \
   --repo dukun1997/ai-code-sender \
   --title "v0.1.2" \
   --notes-file /tmp/release-notes.md
@@ -45,6 +43,9 @@ skills/jetbrains-plugin-release/scripts/release_jetbrains_plugin.sh \
 ## Behavior
 
 The script will:
+- default ZIP lookup directory: `/Users/dukun/code/tool/ai-code-sender/ide-context/jetbrains-plugin/build/distributions`
+- auto-select the newest `.zip` when `--zip` is omitted
+- auto-infer next version (latest semver + patch) when `--version` is omitted
 - normalize tag to `v*`
 - check required tools (`git`, `gh`)
 - create local tag if missing
