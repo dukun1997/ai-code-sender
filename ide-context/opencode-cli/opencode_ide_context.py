@@ -165,8 +165,10 @@ def _context_priority(context_type: str) -> int:
 
 def _select_best_snapshot(locks: list[LockRecord]) -> Optional[ContextSnapshot]:
     now = int(time.time())
+    # Sort locks by updated_ts descending to prioritize fresh locks and reduce HTTP requests/timeouts
+    sorted_locks = sorted(locks, key=lambda l: l.updated_ts, reverse=True)
     best: tuple[tuple[int, int, int, int], ContextSnapshot] | None = None
-    for lock in locks:
+    for lock in sorted_locks:
         try:
             snapshot = _fetch_context(lock)
         except Exception:
@@ -174,9 +176,15 @@ def _select_best_snapshot(locks: list[LockRecord]) -> Optional[ContextSnapshot]:
         if not snapshot.text.strip():
             continue
         freshness = 1 if lock.updated_ts and (now - lock.updated_ts) <= LOCK_STALE_SECONDS else 0
-        score = (_context_priority(snapshot.context_type), snapshot.revision, freshness, lock.updated_ts)
+        priority = _context_priority(snapshot.context_type)
+        score = (priority, snapshot.revision, freshness, lock.updated_ts)
         if best is None or score > best[0]:
             best = (score, snapshot)
+
+        # Early exit if we found a selection (max priority) on a fresh lock
+        if priority == 3 and freshness == 1:
+            break
+
     return best[1] if best else None
 
 

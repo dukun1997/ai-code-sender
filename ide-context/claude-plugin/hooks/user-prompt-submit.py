@@ -78,7 +78,8 @@ def _discover_locks() -> list[LockRecord]:
 
 def _choose_lock(cwd: Path, locks: list[LockRecord]) -> Optional[LockRecord]:
     cwd = cwd.resolve()
-    best: tuple[int, LockRecord] | None = None
+    now = int(__import__("time").time())
+    best: tuple[tuple[int, int, int], LockRecord] | None = None
     for lock in locks:
         for folder in lock.workspace_folders:
             try:
@@ -88,7 +89,8 @@ def _choose_lock(cwd: Path, locks: list[LockRecord]) -> Optional[LockRecord]:
             resolved_text = str(resolved)
             cwd_text = str(cwd)
             if cwd_text == resolved_text or cwd_text.startswith(resolved_text + os.sep):
-                score = len(resolved_text)
+                freshness = 1 if lock.updated_ts and (now - lock.updated_ts) <= LOCK_STALE_SECONDS else 0
+                score = (freshness, len(resolved_text), lock.updated_ts)
                 if best is None or score > best[0]:
                     best = (score, lock)
     return best[1] if best else None
@@ -119,8 +121,10 @@ def _snapshot_has_text(snapshot: dict[str, Any]) -> bool:
 
 
 def _select_best_snapshot(locks: list[LockRecord]) -> Optional[dict[str, Any]]:
+    # Sort locks by updated_ts descending to prioritize fresh locks and reduce HTTP requests/timeouts
+    sorted_locks = sorted(locks, key=lambda l: l.updated_ts, reverse=True)
     best: tuple[tuple[int, int, int], dict[str, Any]] | None = None
-    for lock in locks:
+    for lock in sorted_locks:
         try:
             snapshot = _fetch_context(lock)
         except Exception:
@@ -129,9 +133,15 @@ def _select_best_snapshot(locks: list[LockRecord]) -> Optional[dict[str, Any]]:
             continue
 
         revision = int(snapshot.get("revision")) if isinstance(snapshot.get("revision"), int) else 0
-        score = (_context_priority(snapshot), revision, lock.updated_ts)
+        priority = _context_priority(snapshot)
+        score = (priority, revision, lock.updated_ts)
         if best is None or score > best[0]:
             best = (score, snapshot)
+
+        # Early exit if we found a selection (max priority) on a fresh lock
+        now = int(__import__("time").time())
+        if priority == 3 and (now - lock.updated_ts) <= LOCK_STALE_SECONDS:
+            break
 
     return best[1] if best else None
 

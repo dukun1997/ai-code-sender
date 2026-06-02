@@ -195,6 +195,63 @@ function renderContextBlock(snapshot, cwd) {
   return renderContextCompact(snapshot, cwd);
 }
 
+function contextPriority(type) {
+  const mapping = {
+    selection: 3,
+    class_fallback: 2,
+    caret_window: 1,
+    none: 0,
+  };
+  return mapping[type] || 0;
+}
+
+async function selectBestSnapshot(locks) {
+  // Sort locks by updatedAtMs descending to prioritize fresh locks and reduce HTTP requests/timeouts
+  const sortedLocks = [...locks].sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+  let best = null;
+  for (const lock of sortedLocks) {
+    try {
+      const snapshot = await fetchContext(lock);
+      const text = String(snapshot?.text || "").trim();
+      if (!text) continue;
+
+      const priority = contextPriority(snapshot?.contextType);
+      const revision = Number.isInteger(snapshot?.revision) ? snapshot.revision : 0;
+      const freshness = lock.stale ? 0 : 1;
+
+      const score = {
+        priority,
+        revision,
+        freshness,
+        updatedAtMs: lock.updatedAtMs,
+      };
+
+      if (
+        !best ||
+        score.priority > best.score.priority ||
+        (score.priority === best.score.priority && score.revision > best.score.revision) ||
+        (score.priority === best.score.priority &&
+          score.revision === best.score.revision &&
+          score.freshness > best.score.freshness) ||
+        (score.priority === best.score.priority &&
+          score.revision === best.score.revision &&
+          score.freshness === best.score.freshness &&
+          score.updatedAtMs > best.score.updatedAtMs)
+      ) {
+        best = { score, snapshot };
+      }
+
+      // Early exit if we found a selection from a fresh lock
+      if (priority === 3 && freshness === 1) {
+        break;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return best ? best.snapshot : null;
+}
+
 function prependContext(contextBlock, originalPrompt) {
   const prompt = String(originalPrompt || "").trimEnd();
   if (!prompt) return contextBlock;
@@ -215,15 +272,29 @@ export default async function IdeContextPlugin(ctx) {
 
       try {
         const locks = await discoverLocks();
+        let snapshot = null;
         const matchedLock = chooseLock(cwd, locks);
-        if (!matchedLock) {
+        if (matchedLock) {
+          try {
+            snapshot = await fetchContext(matchedLock);
+          } catch (error) {
+            if (process.env.OPENCODE_IDE_DEBUG === "1") {
+              console.error("[ide-context-plugin] fetch matched lock failed, trying fallback:", error);
+            }
+          }
+        }
+
+        if (!snapshot) {
+          snapshot = await selectBestSnapshot(locks);
+        }
+
+        if (!snapshot) {
           if (process.env.OPENCODE_IDE_DEBUG === "1") {
-            console.error("[ide-context-plugin] no lock matched cwd:", cwd);
+            console.error("[ide-context-plugin] no lock and no fallback resolved");
           }
           return;
         }
 
-        const snapshot = await fetchContext(matchedLock);
         const contextType = String(snapshot?.contextType || "");
         if (contextType !== "selection") {
           if (process.env.OPENCODE_IDE_DEBUG === "1") {

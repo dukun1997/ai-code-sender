@@ -93,6 +93,9 @@ class IdeContextProjectService(private val project: Project) : Disposable {
 
     fun updateFromEditor(editor: Editor) {
         val newSnapshot = ReadAction.compute<IdeContextSnapshot?, RuntimeException> {
+            if (editor.project != project) {
+                return@compute null
+            }
             val document = editor.document
             val virtualFile = FileDocumentManager.getInstance().getFile(document) ?: return@compute null
             val filePath = virtualFile.path
@@ -157,8 +160,40 @@ class IdeContextProjectService(private val project: Project) : Disposable {
         val psiFile = PsiDocumentManager.getInstance(project).getPsiFile(document) ?: return null
         val caretOffset = editor.caretModel.offset
         val element = psiFile.findElementAt(caretOffset) ?: return null
-        val psiClass = PsiTreeUtil.getParentOfType(element, PsiClass::class.java, false) ?: return null
-        val range = psiClass.textRange
+
+        var classElement: com.intellij.psi.PsiElement? = null
+        var functionElement: com.intellij.psi.PsiElement? = null
+        var current: com.intellij.psi.PsiElement? = element
+        while (current != null && current !is com.intellij.psi.PsiFile) {
+            val className = current.javaClass.name
+            if (current is PsiClass ||
+                className.contains("KtClass") ||
+                className.contains("KtObject") ||
+                className.contains("PyClass") ||
+                className.contains("JSClass") ||
+                className.contains("TypeScriptClass") ||
+                className.contains("GoTypeSpec") ||
+                className.contains("GoStructType")
+            ) {
+                if (classElement == null) {
+                    classElement = current
+                }
+            } else if (current is com.intellij.psi.PsiMethod ||
+                       className.contains("KtNamedFunction") ||
+                       className.contains("PyFunction") ||
+                       className.contains("JSFunction") ||
+                       className.contains("GoFunction") ||
+                       className.contains("GoMethod")
+            ) {
+                if (functionElement == null) {
+                    functionElement = current
+                }
+            }
+            current = current.parent
+        }
+
+        val targetElement = classElement ?: functionElement ?: return null
+        val range = targetElement.textRange
 
         val rawText = document.getText(range)
         val (text, truncated) = truncate(rawText)
@@ -166,11 +201,13 @@ class IdeContextProjectService(private val project: Project) : Disposable {
         val endOffset = max(range.startOffset, range.endOffset - 1)
         val lineEnd = document.getLineNumber(endOffset) + 1
 
+        val name = (targetElement as? com.intellij.psi.PsiNamedElement)?.name
+
         return IdeContextSnapshot(
             contextType = "class_fallback",
             workspace = workspace,
             filePath = filePath,
-            className = psiClass.name,
+            className = name,
             lineStart = lineStart,
             lineEnd = lineEnd,
             text = text,
